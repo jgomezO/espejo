@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { MessageCircle } from "lucide-react";
 import { getReflections } from "../../services/storageService.js";
 import { EMOTIONS } from "../../utils/emotions.js";
 import ReflectionDetail from "./ReflectionDetail.jsx";
@@ -98,6 +99,11 @@ export default function HistoryList() {
                       {((r.layers.narrative.whatBringsYou || r.layers.narrative.situation || "").slice(0, 90))}
                       {(r.layers.narrative.whatBringsYou || r.layers.narrative.situation || "").length > 90 ? "..." : ""}
                     </p>
+                    {r.hasChat && (
+                      <span className="history-chat-indicator">
+                        <MessageCircle size={11} strokeWidth={2} /> conversación guardada
+                      </span>
+                    )}
                   </div>
                   <span className="history-arrow">›</span>
                 </motion.button>

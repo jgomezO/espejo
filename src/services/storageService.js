@@ -35,6 +35,7 @@ function fromRow(row) {
     layers: row.layers,
     aiSummary: row.ai_summary,
     therapyQuestions: row.therapy_questions ?? [],
+    hasChat: row.has_chat ?? false,
     completed: row.completed,
   };
 }
@@ -147,7 +148,7 @@ export function createEmptyReflection() {
       afterPattern: null,
       afterRelationship: null,
     },
-    mirrorChat: [],
+    hasChat: false,
     completed: false,
   };
 }

@@ -7,7 +7,6 @@ import { generateMirrorSummary, processAIResponse } from "../../services/anthrop
 import { saveReflection } from "../../services/storageService.js";
 import { useReflection } from "../../hooks/useReflection.js";
 import { EMOTIONS } from "../../utils/emotions.js";
-import MirrorChat from "./MirrorChat.jsx";
 import SafetyDisclaimer from "../safety/SafetyDisclaimer.jsx";
 import TherapyBridge from "../safety/TherapyBridge.jsx";
 import CrisisModal from "../crisis/CrisisModal.jsx";
@@ -21,7 +20,6 @@ export default function MirrorSummary({ reflection }) {
   const [streamingText, setStreamingText] = useState(reflection.aiSummary || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showChat, setShowChat] = useState(false);
   const [savedReflection, setSavedReflection] = useState(reflection);
   const [crisisOpen, setCrisisOpen] = useState(false);
 
@@ -75,10 +73,6 @@ export default function MirrorSummary({ reflection }) {
     reset();
     navigate("/");
   };
-
-  if (showChat) {
-    return <MirrorChat reflection={savedReflection} onClose={handleFinish} />;
-  }
 
   return (
     <motion.div
@@ -187,11 +181,15 @@ export default function MirrorSummary({ reflection }) {
           {mirror && (
             <Button
               className="btn-chat"
-              onPress={() => setShowChat(true)}
+              onPress={() => navigate(`/reflection/${savedReflection.id}/chat`, {
+                state: { mode: "new", reflection: savedReflection, backTo: "/" },
+              })}
               size="lg"
               variant="bordered"
             >
-              <MessageCircle size={18} strokeWidth={2} /> Conversar con mi reflejo
+              <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <MessageCircle size={18} strokeWidth={2} /> Conversar con mi reflejo
+              </span>
             </Button>
           )}
           <Button className="btn-continue" onPress={handleFinish} size="lg">

@@ -195,11 +195,14 @@ export function buildNudgePrompt(layerName, layerData, previousLayers) {
 
 export const MIRROR_CHAT_SYSTEM_PROMPT = `Eres la continuación del espejo emocional. El usuario acaba de recibir un reflejo de su proceso introspectivo y ahora quiere profundizar en conversación.
 
+El reflejo inicial y toda la información de la reflexión están disponibles como contexto previo en esta conversación. Úsalos activamente.
+
 Principios:
 - Mantén el mismo tono cálido, pausado y meditativo del reflejo inicial
 - Responde en máximo 100 palabras — sé conciso y profundo
-- No repitas lo que ya dijiste en el reflejo
-- Si el usuario comparte algo nuevo, intégralo con lo que ya sabes
+- Puedes citar o referenciar fragmentos del reflejo cuando el usuario lo pida o cuando sea útil para la conversación — no los repitas completos sin razón, pero sí úsalos como ancla
+- Si el usuario pregunta sobre el reflejo o la reflexión, responde con precisión basándote en el contenido real que tienes disponible
+- Si el usuario comparte algo nuevo, intégralo con lo que ya sabes de su proceso
 - Prefiere devolver preguntas que abran en vez de respuestas que cierren
 - NUNCA diagnostiques, aconsejes ni impongas una interpretación
 - Si el usuario expresa dolor intenso, valida primero, siempre
@@ -207,6 +210,21 @@ Principios:
 - Responde SOLO en español
 
 ${ETHICAL_GUARDRAILS}`;
+
+export function buildMirrorChatMessages(reflection, allPastMessages, currentMessages) {
+  const base = [
+    { role: "user", content: buildReflectionPrompt(reflection) },
+    { role: "assistant", content: reflection.aiSummary || "He escuchado tu reflexión." },
+  ];
+  // Strip any metadata-only fields (localId, saved) — Claude only gets role + content
+  const strip = (msgs) => msgs.map(({ role, content }) => ({ role, content }));
+  const all = [...strip(allPastMessages), ...strip(currentMessages)];
+  // Truncation: if > 30 messages keep the first 4 (first exchange) + last 20
+  const chatMessages = all.length > 30
+    ? [...all.slice(0, 4), ...all.slice(-20)]
+    : all;
+  return [...base, ...chatMessages];
+}
 
 // =============================================
 // PATTERN ANALYSIS — Análisis de patrones cruzados

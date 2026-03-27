@@ -10,6 +10,7 @@ import Home from "./pages/Home.jsx";
 import Reflect from "./pages/Reflect.jsx";
 import History from "./pages/History.jsx";
 import Profile from "./pages/Profile.jsx";
+import ReflectionChat from "./pages/ReflectionChat.jsx";
 import TermsOfUse from "./pages/TermsOfUse.jsx";
 import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
 import OnboardingConsent from "./components/onboarding/OnboardingConsent.jsx";
@@ -50,6 +51,7 @@ function ProtectedApp() {
           <Route path="/reflect" element={<Reflect />} />
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/reflection/:id/chat" element={<ReflectionChat />} />
         </Route>
       </Routes>
     </ReflectionProvider>

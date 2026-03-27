@@ -96,6 +96,8 @@ export default function AdaptiveLayerCard({ questions, onNext, onBack, isLoading
                 value={answers[q.id] ?? 5}
                 onChange={(e) => setAnswer(q.id, Number(e.target.value))}
                 className="intensity-slider"
+                style={{ "--pct": `${(((answers[q.id] ?? 5) - 1) / 9) * 100}%` }}
+                aria-label={q.question}
               />
               {q.scaleLabel && (
                 <div className="intensity-marks">

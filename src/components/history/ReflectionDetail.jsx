@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Divider } from "@heroui/react";
-import { Sparkles, Sprout, RefreshCw, Trash2 } from "lucide-react";
+import { Sparkles, Sprout, RefreshCw, Trash2, MessageCircle } from "lucide-react";
 import { EMOTIONS } from "../../utils/emotions.js";
 import { useAIInsight } from "../../hooks/useAIInsight.js";
 import { saveReflection, deleteReflection } from "../../services/storageService.js";
+import { getChatSummary } from "../../services/chatService.js";
 import { FALLBACK_QUESTIONS } from "../../utils/fallbackQuestions.js";
 
 function Section({ title, children }) {
@@ -90,10 +92,28 @@ function parseLegacyAiSummary(reflection) {
   return reflection;
 }
 
+function relativeDate(iso) {
+  const date = new Date(iso);
+  const days = Math.floor((Date.now() - date) / 86400000);
+  if (days === 0) return "hoy";
+  if (days === 1) return "ayer";
+  if (days < 7) return `hace ${days} días`;
+  return date.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+}
+
 export default function ReflectionDetail({ reflection: initialReflection, onBack, onDelete }) {
+  const navigate = useNavigate();
   const { fetchInsight, loading, error } = useAIInsight();
   const [reflection, setReflection] = useState(() => parseLegacyAiSummary(initialReflection));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // null = no chat yet (show "Conversar"), object = has chat (show "Retomar" + meta)
+  const [chatSummary, setChatSummary] = useState(null);
+
+  useEffect(() => {
+    getChatSummary(reflection.id)
+      .then((summary) => { if (summary) setChatSummary(summary); })
+      .catch(() => {});
+  }, [reflection.id]);
 
   const handleDelete = () => {
     deleteReflection(reflection.id);
@@ -214,6 +234,22 @@ export default function ReflectionDetail({ reflection: initialReflection, onBack
       {reflection.aiSummary ? (
         <Section title={<><Sparkles size={16} strokeWidth={2} /> Tu espejo</>}>
           <p className="detail-ai-summary">{reflection.aiSummary}</p>
+          <button
+              className="btn-chat-history"
+              onClick={() => navigate(`/reflection/${reflection.id}/chat`, {
+                state: { mode: chatSummary ? "resumed" : "new", reflection },
+              })}
+            >
+              <span className="btn-chat-history-main">
+                <MessageCircle size={15} strokeWidth={2} />
+                {chatSummary ? "Retomar conversación" : "Conversar con mi reflejo"}
+              </span>
+              {chatSummary && (
+                <span className="btn-chat-history-meta">
+                  {chatSummary.totalMessages} mensajes · {relativeDate(chatSummary.lastMessageAt)}
+                </span>
+              )}
+            </button>
         </Section>
       ) : (
         <div className="detail-no-mirror">
