@@ -71,11 +71,11 @@ export default function HomeScreen() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.7 }}
       >
-        <p className="home-count">
-          {reflections.length > 0
-            ? `Llevas ${reflections.length} reflexión${reflections.length !== 1 ? "es" : ""}`
-            : "Aún no tienes reflexiones"}
-        </p>
+        {reflections.length > 0 && (
+          <p className="home-count">
+            {`Llevas ${reflections.length} reflexión${reflections.length !== 1 ? "es" : ""}`}
+          </p>
+        )}
 
         {last && (
           <div className="home-last-card" onClick={() => navigate("/history")} role="button" tabIndex={0}>
