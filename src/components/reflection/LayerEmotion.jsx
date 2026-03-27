@@ -7,74 +7,81 @@ import { generateBodyLocationQuestion } from "../../services/anthropicService.js
 
 const FALLBACK_LABEL = "¿Dónde lo sientes en tu cuerpo?";
 
-export default function LayerEmotion({ initialData, questions, onNext, onBack }) {
-  const [selected, setSelected] = useState(initialData?.secondary
-    ? [initialData.primary, ...initialData.secondary].filter(Boolean)
-    : []
-  );
-  const [intensity, setIntensity] = useState(initialData?.intensity || 5);
+export default function LayerEmotion({ initialData, onNext, onBack }) {
+  const [selectedIds, setSelectedIds] = useState(() => {
+    if (initialData?.selected?.length) return initialData.selected.map((e) => e.id);
+    if (initialData?.primary) return [initialData.primary, ...(initialData.secondary || [])];
+    return [];
+  });
+  const [intensities, setIntensities] = useState(() => {
+    if (initialData?.selected?.length) {
+      return Object.fromEntries(initialData.selected.map((e) => [e.id, e.intensity]));
+    }
+    if (initialData?.primary) {
+      const result = { [initialData.primary]: initialData.intensity || 5 };
+      (initialData.secondary || []).forEach((id) => { result[id] = 5; });
+      return result;
+    }
+    return {};
+  });
   const [bodyLocation, setBodyLocation] = useState(initialData?.bodyLocation || "");
   const [bodyQuestion, setBodyQuestion] = useState(null);
   const [bodyQuestionLoading, setBodyQuestionLoading] = useState(false);
   const lastPrimaryRef = useRef(null);
   const debounceRef = useRef(null);
 
-  const primaryId = selected[0];
+  const primaryId = selectedIds[0];
 
   useEffect(() => {
     if (!primaryId || primaryId === lastPrimaryRef.current) return;
-
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       lastPrimaryRef.current = primaryId;
       const primaryEmotion = EMOTIONS.find((e) => e.id === primaryId)?.label;
       if (!primaryEmotion) return;
-
-      const secondaryEmotions = selected.slice(1)
+      const secondaryEmotions = selectedIds.slice(1)
         .map((id) => EMOTIONS.find((e) => e.id === id)?.label)
         .filter(Boolean);
-
       setBodyQuestionLoading(true);
       const question = await generateBodyLocationQuestion(primaryEmotion, secondaryEmotions);
       setBodyQuestionLoading(false);
       if (question) setBodyQuestion(question);
     }, 300);
-
     return () => clearTimeout(debounceRef.current);
   }, [primaryId]);
 
   const toggle = (id) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]
-    );
+    if (selectedIds.includes(id)) {
+      setSelectedIds((prev) => prev.filter((e) => e !== id));
+      setIntensities((prev) => { const { [id]: _, ...rest } = prev; return rest; });
+    } else {
+      setSelectedIds((prev) => [...prev, id]);
+      setIntensities((prev) => ({ ...prev, [id]: 5 }));
+    }
   };
 
   const handleNext = () => {
-    onNext({
-      primary: selected[0] || "",
-      secondary: selected.slice(1),
-      intensity,
-      bodyLocation,
-    });
+    const selected = selectedIds
+      .map((id) => ({ id, intensity: intensities[id] ?? 5 }))
+      .sort((a, b) => b.intensity - a.intensity);
+    onNext({ selected, bodyLocation });
   };
 
   return (
     <LayerCard
-      title="¿Qué sentiste?"
-      subtitle="Nombrar lo que sientes es el primer acto de consciencia."
+      title="¿Qué sientes?"
+      subtitle="Selecciona todas las que reconozcas en ti, aunque sean contradictorias."
       onNext={handleNext}
       onBack={onBack}
-      disableNext={selected.length === 0}
+      disableNext={selectedIds.length === 0 || !bodyLocation.trim()}
     >
-      <p className="field-hint">Selecciona las emociones que resonaron (la primera será la principal)</p>
       <div className="emotions-grid">
         {EMOTIONS.map((emotion, i) => {
-          const isSelected = selected.includes(emotion.id);
-          const isPrimary = selected[0] === emotion.id;
+          const isSelected = selectedIds.includes(emotion.id);
           return (
             <motion.button
               key={emotion.id}
-              className={`emotion-chip ${isSelected ? "selected" : ""} ${isPrimary ? "primary" : ""}`}
+              className={`emotion-chip${isSelected ? " selected" : ""}`}
               style={{ "--emotion-color": emotion.color }}
               onClick={() => toggle(emotion.id)}
               initial={{ opacity: 0, y: 10 }}
@@ -84,32 +91,60 @@ export default function LayerEmotion({ initialData, questions, onNext, onBack })
             >
               <span className="emotion-icon"><emotion.Icon size={18} strokeWidth={1.8} /></span>
               <span className="emotion-label">{emotion.label}</span>
-              {isPrimary && <span className="emotion-primary-badge">principal</span>}
             </motion.button>
           );
         })}
       </div>
 
-      <div className="intensity-field">
-        <label className="field-label">
-          Intensidad: <strong>{intensity}/10</strong>
-        </label>
-        <p className="field-description">Ej: 3 sería una incomodidad leve; 8 sería algo que te desbordó o no podías dejar de pensar</p>
-        <input
-          type="range"
-          min="1"
-          max="10"
-          value={intensity}
-          onChange={(e) => setIntensity(Number(e.target.value))}
-          className="intensity-slider"
-          style={{ "--value": `${(intensity - 1) / 9 * 100}%` }}
-          aria-label="Intensidad emocional"
-        />
-        <div className="intensity-marks">
-          <span>Suave</span>
-          <span>Intensa</span>
-        </div>
-      </div>
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="emotion-sliders-section"
+          >
+            <p className="field-hint">Ajusta la intensidad de cada emoción</p>
+            <AnimatePresence>
+              {selectedIds.map((id, i) => {
+                const emotion = EMOTIONS.find((e) => e.id === id);
+                if (!emotion) return null;
+                const value = intensities[id] ?? 5;
+                const pct = `${((value - 1) / 9) * 100}%`;
+                return (
+                  <motion.div
+                    key={id}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2, delay: i * 0.05 }}
+                    className="emotion-intensity-row"
+                    style={{ "--emotion-color": emotion.color }}
+                  >
+                    <div className="emotion-intensity-info">
+                      <emotion.Icon size={15} strokeWidth={1.8} style={{ color: emotion.color, flexShrink: 0 }} />
+                      <span className="emotion-intensity-label">{emotion.label}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={value}
+                      onChange={(e) =>
+                        setIntensities((prev) => ({ ...prev, [id]: Number(e.target.value) }))
+                      }
+                      className="emotion-slider"
+                      style={{ "--pct": pct }}
+                      aria-label={`Intensidad de ${emotion.label}`}
+                    />
+                    <span className="emotion-intensity-value">{value}/10</span>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {bodyQuestionLoading && (
@@ -134,11 +169,10 @@ export default function LayerEmotion({ initialData, questions, onNext, onBack })
         >
           <Input
             label={bodyQuestion || FALLBACK_LABEL}
-            placeholder="Ej: pecho tenso, nudo en la garganta, presión en los hombros..."
-            description='Ej: "Siento un peso en el pecho y tensión en los hombros", "me aprieta el estómago"'
+            placeholder="Pecho, garganta, estómago, manos, cabeza..."
             value={bodyLocation}
             onChange={(e) => setBodyLocation(e.target.value)}
-            classNames={{ inputWrapper: "field-wrapper", label: "field-label", description: "field-description" }}
+            classNames={{ inputWrapper: "field-wrapper", label: "field-label" }}
           />
         </motion.div>
       </AnimatePresence>

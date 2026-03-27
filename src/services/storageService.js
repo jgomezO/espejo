@@ -102,8 +102,13 @@ export function deleteReflection(id) {
   (async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) await supabase.from("reflections").delete().eq("id", id).eq("user_id", user.id);
-    } catch {}
+      if (user) {
+        const { error } = await supabase.from("reflections").delete().eq("id", id).eq("user_id", user.id);
+        if (error) console.error("deleteReflection error:", error);
+      }
+    } catch (e) {
+      console.error("deleteReflection exception:", e);
+    }
   })();
 }
 
@@ -126,8 +131,8 @@ export function createEmptyReflection() {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     layers: {
-      narrative: { situation: "", people: "", context: "" },
-      emotion: { primary: "", secondary: [], intensity: 5, bodyLocation: "" },
+      narrative: { whatBringsYou: "", trigger: "", othersInvolved: "", situationType: "" },
+      emotion: { selected: [], bodyLocation: "" },
       resonance: { _questions: null, _answers: {} },
       pattern: { _questions: null, _answers: {} },
       relationship: { _questions: null, _answers: {} },

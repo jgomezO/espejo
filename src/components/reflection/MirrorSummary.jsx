@@ -65,7 +65,11 @@ export default function MirrorSummary({ reflection }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const primaryEmotion = EMOTIONS.find((e) => e.id === reflection.layers.emotion.primary);
+  const dominantEmotionId = reflection.layers.emotion.selected?.[0]?.id ?? reflection.layers.emotion.primary;
+  const dominantIntensity = reflection.layers.emotion.selected?.[0]?.intensity ?? reflection.layers.emotion.intensity;
+  const primaryEmotion = dominantEmotionId ? EMOTIONS.find((e) => e.id === dominantEmotionId) : null;
+  const showTherapyBridge = reflection.layers.emotion.selected?.some((e) => e.intensity >= 8)
+    ?? (reflection.layers.emotion.intensity >= 8);
 
   const handleFinish = () => {
     reset();
@@ -92,7 +96,7 @@ export default function MirrorSummary({ reflection }) {
       {primaryEmotion && (
         <div className="mirror-emotion-badge" style={{ "--emotion-color": primaryEmotion.color }}>
           <primaryEmotion.Icon size={14} strokeWidth={2} /> {primaryEmotion.label}
-          <span className="mirror-intensity"> · {reflection.layers.emotion.intensity}/10</span>
+          <span className="mirror-intensity"> · {dominantIntensity}/10</span>
         </div>
       )}
 
@@ -135,7 +139,7 @@ export default function MirrorSummary({ reflection }) {
       </div>
 
       {!loading && mirror && <SafetyDisclaimer variant="A" />}
-      {!loading && mirror && reflection.layers.emotion.intensity >= 8 && <TherapyBridge />}
+      {!loading && mirror && showTherapyBridge && <TherapyBridge />}
       <CrisisModal isOpen={crisisOpen} onClose={() => setCrisisOpen(false)} />
 
       <AnimatePresence>

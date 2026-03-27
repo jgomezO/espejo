@@ -561,6 +561,58 @@ body {
   margin-top: 6px !important;
 }
 
+/* ── Narrative layer ── */
+.narrative-optional-note {
+  font-size: 12px;
+  color: var(--color-text-soft);
+  margin: 6px 0 0 2px;
+}
+
+.narrative-type-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.narrative-type-label {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.narrative-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.narrative-chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  font-family: 'Quicksand', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-soft);
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+
+.narrative-chip:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.narrative-chip.selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
 .hint-box {
   background: var(--color-ai-light);
   border: 1.5px solid rgba(59, 191, 176, 0.2);
@@ -616,9 +668,7 @@ body {
   box-shadow: 0 4px 14px color-mix(in srgb, var(--emotion-color) 30%, transparent);
 }
 
-.emotion-chip.primary {
-  border-width: 2.5px;
-}
+/* .emotion-chip.primary removed — no primary/secondary distinction */
 
 .emotion-icon {
   font-size: 20px;
@@ -631,16 +681,86 @@ body {
   color: var(--color-text);
 }
 
-.emotion-primary-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  font-size: 10px;
-  background: var(--emotion-color);
-  color: #fff;
-  border-radius: 4px;
-  padding: 1px 5px;
+/* ── Emotion intensity sliders ── */
+.emotion-sliders-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emotion-intensity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.emotion-intensity-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 108px;
+  flex-shrink: 0;
+}
+
+.emotion-intensity-label {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emotion-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--emotion-color) 0%,
+    var(--emotion-color) var(--pct, 50%),
+    var(--color-border) var(--pct, 50%),
+    var(--color-border) 100%
+  );
+  cursor: pointer;
+  outline: none;
+}
+
+.emotion-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--emotion-color);
+  border: 2.5px solid white;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.emotion-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--emotion-color);
+  border: 2.5px solid white;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  border: none;
+}
+
+.emotion-intensity-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--emotion-color);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 .body-question-loading {
@@ -1520,6 +1640,20 @@ body {
   color: #e53935;
   margin: 0;
   font-weight: 600;
+}
+
+.login-legal {
+  font-size: 12px;
+  color: var(--color-text-soft);
+  text-align: center;
+  margin: 16px 0 0;
+  line-height: 1.5;
+}
+
+.login-legal a {
+  color: var(--color-text-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .login-sent {
@@ -2483,4 +2617,87 @@ body {
   cursor: pointer;
   text-align: left;
   padding: 0;
+}
+
+/* ── Profile Hero ── */
+.profile-hero {
+  background: var(--gradient-primary);
+  padding: 48px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.profile-avatar-img {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  object-fit: cover;
+  margin-bottom: 14px;
+}
+
+.profile-avatar-fallback {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 14px;
+}
+
+.profile-hero-name {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 4px;
+}
+
+.profile-hero-email {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+
+.profile-body {
+  padding: 28px 20px 40px;
+}
+
+/* ── Profile Action Rows ── */
+.profile-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: var(--color-surface);
+  border: none;
+  border-radius: 14px;
+  padding: 15px 18px;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 10px;
+  transition: opacity 0.2s;
+}
+
+.profile-action-row:hover {
+  opacity: 0.8;
+}
+
+.profile-action-danger {
+  color: #e53935;
 }

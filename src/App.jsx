@@ -10,6 +10,8 @@ import Home from "./pages/Home.jsx";
 import Reflect from "./pages/Reflect.jsx";
 import History from "./pages/History.jsx";
 import Profile from "./pages/Profile.jsx";
+import TermsOfUse from "./pages/TermsOfUse.jsx";
+import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
 import OnboardingConsent from "./components/onboarding/OnboardingConsent.jsx";
 
 function LoadingScreen() {
@@ -20,7 +22,7 @@ function LoadingScreen() {
   );
 }
 
-function AppRoutes() {
+function ProtectedApp() {
   const { user } = useAuth();
   const { state, dispatch, initialized } = useUserContext();
 
@@ -42,28 +44,38 @@ function AppRoutes() {
 
   return (
     <ReflectionProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/reflect" element={<Reflect />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/profile" element={<Profile />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/reflect" element={<Reflect />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+      </Routes>
     </ReflectionProvider>
+  );
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/terms" element={<TermsOfUse />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="*" element={<ProtectedApp />} />
+    </Routes>
   );
 }
 
 export default function App() {
   return (
     <HeroUIProvider>
-      <AuthProvider>
-        <UserProvider>
-          <AppRoutes />
-        </UserProvider>
-      </AuthProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <UserProvider>
+            <AppRoutes />
+          </UserProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </HeroUIProvider>
   );
 }

@@ -25,7 +25,8 @@ export default function HomeScreen() {
   const reflections = getReflections();
   const [crisisOpen, setCrisisOpen] = useState(false);
   const last = reflections[0];
-  const lastEmotion = last ? EMOTIONS.find((e) => e.id === last.layers.emotion.primary) : null;
+  const lastEmotionId = last?.layers.emotion.selected?.[0]?.id ?? last?.layers.emotion.primary;
+  const lastEmotion = lastEmotionId ? EMOTIONS.find((e) => e.id === lastEmotionId) : null;
 
   const handleStart = () => {
     start();
@@ -84,7 +85,7 @@ export default function HomeScreen() {
                 <lastEmotion.Icon size={14} strokeWidth={2} /> {lastEmotion.label}
               </div>
             )}
-            <p className="home-last-narrative">{last.layers.narrative.situation?.slice(0, 80)}...</p>
+            <p className="home-last-narrative">{(last.layers.narrative.whatBringsYou || last.layers.narrative.situation || "").slice(0, 80)}...</p>
           </div>
         )}
       </motion.div>

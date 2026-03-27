@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/react";
 import { motion } from "framer-motion";
-import { Lock } from "lucide-react";
+import { Lock, LogOut, Trash2 } from "lucide-react";
 import { useUserContext } from "../../context/UserContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { deleteAllReflections } from "../../services/storageService.js";
@@ -22,6 +22,27 @@ function Toggle({ isOn, onChange, ariaLabel }) {
   );
 }
 
+function Avatar({ src, name }) {
+  const [imgError, setImgError] = useState(false);
+  const initial = name?.charAt(0)?.toUpperCase() || "?";
+
+  if (src && !imgError) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="profile-avatar-img"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+  return (
+    <div className="profile-avatar-fallback">
+      {initial}
+    </div>
+  );
+}
+
 export default function ProfileScreen() {
   const { state: user, dispatch, saveToSupabase } = useUserContext();
   const [saving, setSaving] = useState(false);
@@ -30,7 +51,11 @@ export default function ProfileScreen() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [crisisOpen, setCrisisOpen] = useState(false);
 
-  const displayName = authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || authUser?.email;
+  const displayName = authUser?.user_metadata?.full_name
+    || authUser?.user_metadata?.name
+    || authUser?.email;
+  const avatarUrl = authUser?.user_metadata?.avatar_url
+    || authUser?.user_metadata?.picture;
 
   const handleSave = async () => {
     setSaving(true);
@@ -53,81 +78,92 @@ export default function ProfileScreen() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
+      style={{ padding: 0 }}
     >
-      <div className="profile-header">
-        <h1 className="screen-title">Perfil</h1>
+      {/* ── Hero ── */}
+      <div className="profile-hero">
+        <Avatar src={avatarUrl} name={displayName} />
+        <h1 className="profile-hero-name">{displayName}</h1>
+        {authUser?.email && (
+          <p className="profile-hero-email">{authUser.email}</p>
+        )}
       </div>
 
-      <div className="profile-section">
-        <h2 className="profile-section-title">Tu nombre</h2>
-        {displayName && <p className="profile-account-email">{displayName}</p>}
-      </div>
+      {/* ── Body ── */}
+      <div className="profile-body">
 
-      <div className="profile-section">
-        <h2 className="profile-section-title">Preferencias</h2>
-        <div className="profile-toggle-row">
-          <div>
-            <p className="profile-toggle-label">Prompt diario</p>
-            <p className="profile-toggle-desc">Recibe una pregunta introspectiva cada día</p>
+        {/* Preferencias */}
+        <div className="profile-section">
+          <h2 className="profile-section-title">Preferencias</h2>
+          <div className="profile-toggle-row">
+            <div>
+              <p className="profile-toggle-label">Prompt diario</p>
+              <p className="profile-toggle-desc">Recibe una pregunta introspectiva cada día</p>
+            </div>
+            <Toggle
+              isOn={user.dailyPromptEnabled}
+              onChange={() => dispatch({ type: "TOGGLE_DAILY_PROMPT" })}
+              ariaLabel="Activar prompt diario"
+            />
           </div>
-          <Toggle
-            isOn={user.dailyPromptEnabled}
-            onChange={() => dispatch({ type: "TOGGLE_DAILY_PROMPT" })}
-            ariaLabel="Activar prompt diario"
-          />
-        </div>
-        <div className="profile-toggle-row" style={{ marginTop: "10px" }}>
-          <div>
-            <p className="profile-toggle-label">Preguntas de profundización</p>
-            <p className="profile-toggle-desc">La IA te hará una pregunta reflexiva entre cada capa</p>
+          <div className="profile-toggle-row" style={{ marginTop: "10px" }}>
+            <div>
+              <p className="profile-toggle-label">Preguntas de profundización</p>
+              <p className="profile-toggle-desc">La IA te hará una pregunta reflexiva entre cada capa</p>
+            </div>
+            <Toggle
+              isOn={user.nudgesEnabled !== false}
+              onChange={() => dispatch({ type: "TOGGLE_NUDGES" })}
+              ariaLabel="Activar preguntas de profundización"
+            />
           </div>
-          <Toggle
-            isOn={user.nudgesEnabled !== false}
-            onChange={() => dispatch({ type: "TOGGLE_NUDGES" })}
-            ariaLabel="Activar preguntas de profundización"
-          />
         </div>
-      </div>
 
-      <div className="profile-section">
-        <h2 className="profile-section-title">Privacidad</h2>
-        <div className="privacy-note">
-          <p><Lock size={14} strokeWidth={2} /> Tus reflexiones se guardan solo en tu cuenta. Las consultas a la IA no almacenan datos personales.</p>
-        </div>
-        <div className="profile-account">
-          {authUser && <p className="profile-account-email">{authUser.email}</p>}
-          <button className="btn-signout" onClick={signOut}>Cerrar sesión</button>
-        </div>
-        <Button
-          className="btn-delete"
-          color="danger"
-          variant="bordered"
-          onPress={onOpen}
+        <button
+          className="btn-save-preferences"
+          onClick={handleSave}
+          disabled={saving}
         >
-          Borrar todos mis datos
-        </Button>
-      </div>
+          {saved ? "Guardado ✓" : saving ? "Guardando..." : "Guardar cambios"}
+        </button>
 
-      <button
-        className="btn-save-preferences"
-        onClick={handleSave}
-        disabled={saving}
-      >
-        {saved ? "Guardado ✓" : saving ? "Guardando..." : "Guardar cambios"}
-      </button>
+        {/* Privacidad */}
+        <div className="profile-section">
+          <h2 className="profile-section-title">Privacidad</h2>
+          <div className="privacy-note">
+            <p><Lock size={14} strokeWidth={2} /> Tus reflexiones se guardan solo en tu cuenta. Las consultas a la IA no almacenan datos personales.</p>
+          </div>
+        </div>
 
-      <div className="profile-section">
-        <h2 className="profile-section-title">Sobre Espejo</h2>
-        <p className="profile-about-text">{LEGAL.aboutEspejo}</p>
-        <p className="profile-about-text" style={{ marginTop: "8px" }}>
-          Si estás en proceso terapéutico, Espejo puede ser un complemento valioso entre sesiones.
-        </p>
-        <div className="profile-legal-links">
-          <button className="profile-legal-link" onClick={() => setCrisisOpen(true)}>
-            Recursos de ayuda en crisis
+        {/* Cuenta */}
+        <div className="profile-section">
+          <h2 className="profile-section-title">Cuenta</h2>
+          <button className="profile-action-row" onClick={signOut}>
+            <LogOut size={18} strokeWidth={1.8} />
+            <span>Cerrar sesión</span>
+          </button>
+          <button className="profile-action-row profile-action-danger" onClick={onOpen}>
+            <Trash2 size={18} strokeWidth={1.8} />
+            <span>Borrar todos mis datos</span>
           </button>
         </div>
+
+        {/* Sobre Espejo */}
+        <div className="profile-section">
+          <h2 className="profile-section-title">Sobre Espejo</h2>
+          <p className="profile-about-text">{LEGAL.aboutEspejo}</p>
+          <p className="profile-about-text" style={{ marginTop: "8px" }}>
+            Si estás en proceso terapéutico, Espejo puede ser un complemento valioso entre sesiones.
+          </p>
+          <div className="profile-legal-links">
+            <button className="profile-legal-link" onClick={() => setCrisisOpen(true)}>
+              Recursos de ayuda en crisis
+            </button>
+          </div>
+        </div>
+
       </div>
+
       <CrisisModal isOpen={crisisOpen} onClose={() => setCrisisOpen(false)} />
 
       <Modal isOpen={isOpen} onClose={onClose} placement="center">

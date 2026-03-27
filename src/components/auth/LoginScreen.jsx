@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -57,6 +58,12 @@ export default function LoginScreen() {
             )}
             <span>{loading ? "Conectando..." : "Continuar con Google"}</span>
           </button>
+          <p className="login-legal">
+            Al continuar, aceptas nuestros{" "}
+            <Link to="/terms">Términos de uso</Link>{" "}
+            y{" "}
+            <Link to="/privacy">Política de privacidad</Link>
+          </p>
         </div>
       </motion.div>
     </div>

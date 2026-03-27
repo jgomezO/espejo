@@ -90,21 +90,24 @@ function parseLegacyAiSummary(reflection) {
   return reflection;
 }
 
-export default function ReflectionDetail({ reflection: initialReflection, onBack }) {
+export default function ReflectionDetail({ reflection: initialReflection, onBack, onDelete }) {
   const { fetchInsight, loading, error } = useAIInsight();
   const [reflection, setReflection] = useState(() => parseLegacyAiSummary(initialReflection));
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDelete = () => {
     deleteReflection(reflection.id);
-    onBack();
+    if (onDelete) onDelete(reflection.id);
+    else onBack();
   };
 
   const { layers } = reflection;
-  const primaryEmotion = EMOTIONS.find((e) => e.id === layers.emotion.primary);
-  const secondaryEmotions = layers.emotion.secondary
-    .map((id) => EMOTIONS.find((e) => e.id === id))
-    .filter(Boolean);
+  const dominantId = layers.emotion.selected?.[0]?.id ?? layers.emotion.primary;
+  const primaryEmotion = dominantId ? EMOTIONS.find((e) => e.id === dominantId) : null;
+  const dominantIntensity = layers.emotion.selected?.[0]?.intensity ?? layers.emotion.intensity;
+  const emotionList = layers.emotion.selected?.length
+    ? layers.emotion.selected.map((e) => ({ emotion: EMOTIONS.find((em) => em.id === e.id), intensity: e.intensity })).filter((e) => e.emotion)
+    : layers.emotion.secondary?.map((id) => ({ emotion: EMOTIONS.find((e) => e.id === id), intensity: null })).filter((e) => e.emotion) || [];
 
   const handleGenerate = () => {
     fetchInsight(reflection).then((result) => {
@@ -136,25 +139,30 @@ export default function ReflectionDetail({ reflection: initialReflection, onBack
         </button>
         {primaryEmotion && (
           <div className="detail-emotion-badge" style={{ "--emotion-color": primaryEmotion.color }}>
-            {primaryEmotion.icon} {primaryEmotion.label} · {layers.emotion.intensity}/10
+            <primaryEmotion.Icon size={13} strokeWidth={2} /> {primaryEmotion.label} · {dominantIntensity}/10
           </div>
         )}
       </div>
 
       <Divider className="my-4" />
 
-      <Section title="¿Qué sucedió?">
-        <p>{layers.narrative.situation}</p>
+      <Section title="¿Qué te trajo aquí?">
+        {(layers.narrative.whatBringsYou || layers.narrative.situation) && (
+          <p>{layers.narrative.whatBringsYou || layers.narrative.situation}</p>
+        )}
+        {layers.narrative.trigger && <p className="detail-meta">Detonante: {layers.narrative.trigger}</p>}
+        {layers.narrative.othersInvolved && <p className="detail-meta">Otros: {layers.narrative.othersInvolved}</p>}
+        {layers.narrative.situationType && <p className="detail-meta">Tipo: {layers.narrative.situationType}</p>}
         {layers.narrative.people && <p className="detail-meta">Personas: {layers.narrative.people}</p>}
         {layers.narrative.context && <p className="detail-meta">Contexto: {layers.narrative.context}</p>}
       </Section>
 
       <Section title="¿Qué sentiste?">
-        {secondaryEmotions.length > 0 && (
+        {emotionList.length > 0 && (
           <div className="detail-emotions-list">
-            {secondaryEmotions.map((e) => (
+            {emotionList.map(({ emotion: e, intensity }) => (
               <span key={e.id} className="detail-emotion-chip" style={{ "--emotion-color": e.color }}>
-                {e.icon} {e.label}
+                <e.Icon size={13} strokeWidth={2} /> {e.label}{intensity !== null ? ` · ${intensity}/10` : ""}
               </span>
             ))}
           </div>

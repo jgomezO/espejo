@@ -1,3 +1,5 @@
+import { EMOTIONS } from "./emotions.js";
+
 // =============================================
 // BODY LOCATION — Pregunta corporal dinámica
 // =============================================
@@ -88,13 +90,20 @@ export function buildReflectionPrompt(data) {
   let prompt = `El usuario completó un proceso de reflexión guiada. Las dos primeras capas tenían preguntas fijas. A partir de la tercera, las preguntas fueron generadas por IA específicamente para este usuario.\n\n`;
 
   prompt += `── CAPA 1: NARRATIVA ──\n`;
-  prompt += `Situación: ${layers.narrative.situation}\n`;
-  prompt += `Personas involucradas: ${layers.narrative.people}\n`;
-  prompt += `Contexto: ${layers.narrative.context}\n\n`;
+  prompt += `Qué lo trae: ${layers.narrative.whatBringsYou}\n`;
+  prompt += `Detonante: ${layers.narrative.trigger}\n`;
+  if (layers.narrative.othersInvolved) {
+    prompt += `Otros involucrados: ${layers.narrative.othersInvolved}\n`;
+  }
+  prompt += `Tipo de situación: ${layers.narrative.situationType}\n\n`;
 
   prompt += `── CAPA 2: EMOCIÓN ──\n`;
-  prompt += `Emoción principal: ${layers.emotion.primary} (intensidad ${layers.emotion.intensity}/10)\n`;
-  prompt += `Emociones secundarias: ${layers.emotion.secondary.join(", ")}\n`;
+  prompt += `Mapa emocional:\n`;
+  (layers.emotion.selected || []).forEach((e, i) => {
+    const emotionData = EMOTIONS.find((em) => em.id === e.id);
+    const label = emotionData ? emotionData.label : e.id;
+    prompt += `  - ${label}: ${e.intensity}/10${i === 0 ? " (dominante)" : ""}\n`;
+  });
   prompt += `Ubicación corporal: ${layers.emotion.bodyLocation}\n\n`;
 
   const dynamicLayers = ["resonance", "pattern", "relationship", "insight"];
@@ -228,8 +237,13 @@ export function buildPatternAnalysisPrompt(reflections) {
 
   reflections.forEach((r, i) => {
     prompt += `--- Reflexión #${i + 1} (${new Date(r.createdAt).toLocaleDateString("es")}) ---\n`;
-    prompt += `Emoción principal: ${r.layers.emotion.primary} (intensidad ${r.layers.emotion.intensity}/10)\n`;
-    prompt += `Situación: ${r.layers.narrative.situation.substring(0, 200)}\n`;
+    const emotionsSummary = (r.layers.emotion.selected || []).map((e) => {
+      const emotionData = EMOTIONS.find((em) => em.id === e.id);
+      return `${emotionData ? emotionData.label : e.id} (${e.intensity}/10)`;
+    }).join(", ") || r.layers.emotion.primary || "";
+    prompt += `Emociones: ${emotionsSummary}\n`;
+    const narrativeSummary = r.layers.narrative.whatBringsYou || r.layers.narrative.situation || "";
+    prompt += `Situación: ${narrativeSummary.substring(0, 200)}\n`;
 
     const dynamicLayers = ["resonance", "pattern", "relationship", "insight"];
     dynamicLayers.forEach((layerName) => {
@@ -352,19 +366,23 @@ export function buildLayerQuestionsPrompt(layerName, previousLayers) {
 
   if (previousLayers.narrative) {
     prompt += `CAPA 1 — Narrativa:\n`;
-    prompt += `  Situación: ${previousLayers.narrative.situation}\n`;
-    prompt += `  Personas involucradas: ${previousLayers.narrative.people}\n`;
-    prompt += `  Contexto: ${previousLayers.narrative.context}\n\n`;
+    prompt += `  Qué lo trae: ${previousLayers.narrative.whatBringsYou}\n`;
+    prompt += `  Detonante: ${previousLayers.narrative.trigger}\n`;
+    if (previousLayers.narrative.othersInvolved) {
+      prompt += `  Otros involucrados: ${previousLayers.narrative.othersInvolved}\n`;
+    }
+    prompt += `  Tipo de situación: ${previousLayers.narrative.situationType}\n\n`;
   }
 
   if (previousLayers.emotion) {
     prompt += `CAPA 2 — Emoción:\n`;
-    prompt += `  Emoción principal: ${previousLayers.emotion.primary}`;
-    if (previousLayers.emotion.intensity) prompt += ` (intensidad ${previousLayers.emotion.intensity}/10)`;
-    prompt += `\n`;
-    if (previousLayers.emotion.secondary?.length > 0) {
-      prompt += `  Emociones secundarias: ${previousLayers.emotion.secondary.join(", ")}\n`;
-    }
+    prompt += `  Mapa emocional (ordenado por intensidad):\n`;
+    (previousLayers.emotion.selected || []).forEach((e, i) => {
+      const emotionData = EMOTIONS.find((em) => em.id === e.id);
+      const label = emotionData ? emotionData.label : e.id;
+      const role = i === 0 ? " (dominante)" : "";
+      prompt += `    - ${label}: ${e.intensity}/10${role}\n`;
+    });
     if (previousLayers.emotion.bodyLocation) {
       prompt += `  Dónde lo siente en el cuerpo: ${previousLayers.emotion.bodyLocation}\n`;
     }
@@ -447,7 +465,13 @@ Reglas:
 
 export function buildDailyPromptRequest(reflections) {
   if (!reflections || reflections.length === 0) return null;
-  const recentEmotions = reflections.slice(-5).map((r) => r.layers.emotion.primary);
+  const recentEmotions = reflections.slice(-5).map((r) => {
+    if (r.layers.emotion.selected?.length) {
+      const emotionData = EMOTIONS.find((em) => em.id === r.layers.emotion.selected[0].id);
+      return emotionData ? emotionData.label : r.layers.emotion.selected[0].id;
+    }
+    return r.layers.emotion.primary || "";
+  }).filter(Boolean);
   const recentNeeds = reflections.slice(-5).map((r) => {
     const res = r.layers.resonance;
     if (res && "_answers" in res) return Object.values(res._answers).find((v) => typeof v === "string") || null;

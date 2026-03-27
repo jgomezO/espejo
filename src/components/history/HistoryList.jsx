@@ -24,7 +24,16 @@ export default function HistoryList() {
   }, []);
 
   if (selected) {
-    return <ReflectionDetail reflection={selected} onBack={() => setSelected(null)} />;
+    return (
+      <ReflectionDetail
+        reflection={selected}
+        onBack={() => setSelected(null)}
+        onDelete={(id) => {
+          setReflections((prev) => prev.filter((r) => r.id !== id));
+          setSelected(null);
+        }}
+      />
+    );
   }
 
   return (
@@ -53,7 +62,8 @@ export default function HistoryList() {
         <div className="history-list">
           <AnimatePresence>
             {reflections.map((r, i) => {
-              const emotion = EMOTIONS.find((e) => e.id === r.layers.emotion.primary);
+              const emotionId = r.layers.emotion.selected?.[0]?.id ?? r.layers.emotion.primary;
+              const emotion = EMOTIONS.find((e) => e.id === emotionId);
               return (
                 <motion.button
                   key={r.id}
@@ -85,8 +95,8 @@ export default function HistoryList() {
                       )}
                     </div>
                     <p className="history-narrative">
-                      {r.layers.narrative.situation?.slice(0, 90)}
-                      {r.layers.narrative.situation?.length > 90 ? "..." : ""}
+                      {((r.layers.narrative.whatBringsYou || r.layers.narrative.situation || "").slice(0, 90))}
+                      {(r.layers.narrative.whatBringsYou || r.layers.narrative.situation || "").length > 90 ? "..." : ""}
                     </p>
                   </div>
                   <span className="history-arrow">›</span>
