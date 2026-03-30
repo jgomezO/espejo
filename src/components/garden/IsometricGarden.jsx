@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { EMOTIONS } from "../../utils/emotions.js";
 import IsometricPlant, { GROWTH_LABELS } from "./IsometricPlant.jsx";
+import ZoomableCanvas from "./ZoomableCanvas.jsx";
 
 const TILE_W = 72;
 const TILE_H = 36;
@@ -56,7 +57,7 @@ function TileDecorations({ x, y, row, col }) {
   );
 }
 
-function Tooltip({ reflection, emotion, growth, x, y, svgW }) {
+function Tooltip({ reflection, emotion, growth, x, y, svgW, zoom = 1 }) {
   if (!reflection || !emotion) return null;
   const W = 170;
   const H = 86;
@@ -75,11 +76,17 @@ function Tooltip({ reflection, emotion, growth, x, y, svgW }) {
     month: "short",
   });
 
+  const scaledW = W * zoom;
+  const scaledH = (H + 20) * zoom;
+
   return (
-    <foreignObject x={tx} y={ty} width={W} height={H + 20}>
+    <foreignObject x={tx} y={ty} width={scaledW} height={scaledH}>
       <div
         xmlns="http://www.w3.org/1999/xhtml"
         style={{
+          transform: `scale(${1 / zoom})`,
+          transformOrigin: "top left",
+          width: W,
           background: "rgba(255,255,255,0.97)",
           border: "1px solid #E2EBF4",
           borderRadius: 14,
@@ -129,6 +136,7 @@ function Tooltip({ reflection, emotion, growth, x, y, svgW }) {
 
 export default function IsometricGarden({ reflections }) {
   const [selectedId, setSelectedId] = useState(null);
+  const [zoom, setZoom] = useState(1);
 
   const gridSize = useMemo(
     () => Math.max(5, Math.ceil(Math.sqrt(reflections.length + 5))),
@@ -200,12 +208,11 @@ export default function IsometricGarden({ reflections }) {
   }
 
   return (
-    <svg
+    <ZoomableCanvas
       viewBox={`0 0 ${svgW} ${svgH}`}
-      width="100%"
-      style={{ display: "block", overflow: "visible" }}
-      role="img"
-      aria-label="Jardín interior isométrico"
+      minZoom={1}
+      maxZoom={3}
+      onZoomChange={setZoom}
     >
       <defs>
         {/* Soil background gradient */}
@@ -309,9 +316,10 @@ export default function IsometricGarden({ reflections }) {
           x={selectedCell.x}
           y={selectedCell.y}
           svgW={svgW}
+          zoom={zoom}
         />
       )}
-    </svg>
+    </ZoomableCanvas>
   );
 }
 

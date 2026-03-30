@@ -19,6 +19,7 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
   const { user } = useAuth();
 
   const [sessionId, setSessionId] = useState(null);
+  const [initialized, setInitialized] = useState(false);
   const [pastSessions, setPastSessions] = useState([]);
   // Each message: { localId, role, content, saved: bool }
   const [currentMessages, setCurrentMessages] = useState([]);
@@ -30,41 +31,53 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
   const [crisisOpen, setCrisisOpen] = useState(false);
   const [dismissedNudges, setDismissedNudges] = useState(new Set());
   const bottomRef = useRef(null);
+  const initRan = useRef(false);
+  const tokenRef = useRef(null);
 
   useEffect(() => {
+    if (initRan.current) return;
+    initRan.current = true;
+
+    // Safety net: always unblock the UI after 8s even if something hangs
+    const safetyTimer = setTimeout(() => setInitialized(true), 8000);
+
     (async () => {
-      // Step 1: ensure reflection exists in Supabase (FK dependency for chat_sessions)
-      await syncReflection(reflection);
-
-      // Step 2: load history independently — always applies even if session creation fails
-      const history = await loadChatHistory(reflection.id);
-
-      // Step 3: create/find today's session separately so a failure doesn't lose the history
       try {
-        const session = await getOrCreateTodaySession(reflection.id, user.id);
-        setSessionId(session.id);
+        console.log("[MirrorChat] step 1: syncReflection");
+        const token = await syncReflection(reflection, user.id);
+        tokenRef.current = token;
+        console.log("[MirrorChat] step 2: loadChatHistory, token:", !!token);
+        const history = await loadChatHistory(reflection.id, token);
+        console.log("[MirrorChat] step 3: getOrCreateTodaySession, sessions:", history.sessions.length);
 
-        const todaySession = history.sessions.find((s) => s.id === session.id);
-        setPastSessions(history.sessions.filter((s) => s.id !== session.id));
+        try {
+          const session = await getOrCreateTodaySession(reflection.id, user.id, token);
+          setSessionId(session.id);
 
-        if (todaySession?.messages.length) {
-          setCurrentMessages(
-            todaySession.messages.map((m) => ({
-              localId: m.id,
-              role: m.role,
-              content: m.content,
-              saved: true,
-            }))
-          );
+          const todaySession = history.sessions.find((s) => s.id === session.id);
+          setPastSessions(history.sessions.filter((s) => s.id !== session.id));
+
+          if (todaySession?.messages.length) {
+            setCurrentMessages(
+              todaySession.messages.map((m) => ({
+                localId: m.id,
+                role: m.role,
+                content: m.content,
+                saved: true,
+              }))
+            );
+          }
+        } catch (err) {
+          setPastSessions(history.sessions);
+          const msg = err?.message ?? String(err);
+          if (!msg.includes("23503")) {
+            console.error("MirrorChat session error:", msg);
+            setInitError(msg);
+          }
         }
-      } catch (err) {
-        // Session creation failed — show all history as past sessions, chat works without persistence
-        setPastSessions(history.sessions);
-        const msg = err?.message ?? String(err);
-        if (!msg.includes("23503")) {
-          console.error("MirrorChat session error:", msg);
-          setInitError(msg);
-        }
+      } finally {
+        clearTimeout(safetyTimer);
+        setInitialized(true);
       }
     })();
   }, []);
@@ -80,7 +93,7 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
     const msg = currentMessages.find((m) => m.localId === localId);
     if (!msg || !sessionId) return;
     try {
-      await saveMessage(sessionId, user.id, msg.role, msg.content);
+      await saveMessage(sessionId, user.id, msg.role, msg.content, tokenRef.current);
       updateMessage(localId, { saved: true });
     } catch { /* stays unsaved */ }
   };
@@ -98,7 +111,7 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
 
     // Persist user message (non-blocking, only if session exists)
     if (sessionId) {
-      saveMessage(sessionId, user.id, "user", userMsg.content)
+      saveMessage(sessionId, user.id, "user", userMsg.content, tokenRef.current)
         .then(() => updateMessage(userLocalId, { saved: true }))
         .catch(() => { /* stays unsaved */ });
     }
@@ -127,7 +140,7 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
 
       // Persist assistant message (non-blocking, only if session exists)
       if (sessionId) {
-        saveMessage(sessionId, user.id, "assistant", aiMsg.content)
+        saveMessage(sessionId, user.id, "assistant", aiMsg.content, tokenRef.current)
           .then(() => updateMessage(aiLocalId, { saved: true }))
           .catch(() => { /* stays unsaved */ });
       }
@@ -181,7 +194,7 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
         )}
 
         {/* Session initializing */}
-        {!sessionId && !initError && (
+        {!initialized && (
           <motion.p
             className="mirror-chat-init-hint"
             animate={{ opacity: [0.4, 1, 0.4] }}
@@ -191,8 +204,8 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
           </motion.p>
         )}
 
-        {/* Past sessions (read-only) */}
-        {pastSessions.map((session) => (
+        {/* Past sessions (read-only) — skip empty sessions */}
+        {pastSessions.filter((s) => s.messages.length > 0).map((session) => (
           <div key={session.id} className="mirror-chat-past-session">
             <div className="mirror-chat-session-divider">
               <span>{formatSessionDate(session.startedAt)}</span>
@@ -206,7 +219,7 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
         ))}
 
         {/* Separator before current session */}
-        {pastSessions.length > 0 && (
+        {pastSessions.some((s) => s.messages.length > 0) && (
           <div className="mirror-chat-session-divider current">
             <span>Hoy</span>
           </div>
