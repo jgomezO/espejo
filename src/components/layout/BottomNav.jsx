@@ -1,9 +1,10 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Feather, BookOpen, User } from "lucide-react";
+import { Home, Feather, BookOpen, User, Sprout } from "lucide-react";
 
 const NAV_ITEMS = [
   { path: "/",        label: "Inicio",    Icon: Home },
   { path: "/reflect", label: "Reflexión", Icon: Feather },
+  { path: "/garden",  label: "Jardín",   Icon: Sprout },
   { path: "/history", label: "Historial", Icon: BookOpen },
   { path: "/profile", label: "Perfil",    Icon: User },
 ];

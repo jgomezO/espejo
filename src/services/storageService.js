@@ -153,6 +153,24 @@ export function createEmptyReflection() {
   };
 }
 
+/**
+ * Ensure a specific reflection exists in Supabase before operations that
+ * depend on it (e.g. creating a chat session with FK on reflection_id).
+ * Uses getSession() (localStorage read, no network) instead of getUser()
+ * to avoid timing/network issues during mount.
+ */
+export async function syncReflection(reflection) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    await supabase
+      .from("reflections")
+      .upsert(toRow(reflection, session.user.id), { onConflict: "id" });
+  } catch {
+    // Sync failed — caller will handle FK error
+  }
+}
+
 // Migrate local reflections to Supabase after login
 export async function migrateLocalToSupabase(userId) {
   const local = getLocal();

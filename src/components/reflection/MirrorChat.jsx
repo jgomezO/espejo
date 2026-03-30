@@ -4,6 +4,7 @@ import { AlertCircle } from "lucide-react";
 import { callClaudeStream, processAIResponse } from "../../services/anthropicService.js";
 import { MIRROR_CHAT_SYSTEM_PROMPT, buildMirrorChatMessages } from "../../utils/prompts.js";
 import { loadChatHistory, getOrCreateTodaySession, saveMessage } from "../../services/chatService.js";
+import { syncReflection } from "../../services/storageService.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import SafetyDisclaimer from "../safety/SafetyDisclaimer.jsx";
 import CrisisModal from "../crisis/CrisisModal.jsx";
@@ -32,14 +33,19 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
 
   useEffect(() => {
     (async () => {
+      // Step 1: ensure reflection exists in Supabase (FK dependency for chat_sessions)
+      await syncReflection(reflection);
+
+      // Step 2: load history independently — always applies even if session creation fails
+      const history = await loadChatHistory(reflection.id);
+
+      // Step 3: create/find today's session separately so a failure doesn't lose the history
       try {
-        const [history, session] = await Promise.all([
-          loadChatHistory(reflection.id),
-          getOrCreateTodaySession(reflection.id, user.id),
-        ]);
+        const session = await getOrCreateTodaySession(reflection.id, user.id);
+        setSessionId(session.id);
+
         const todaySession = history.sessions.find((s) => s.id === session.id);
         setPastSessions(history.sessions.filter((s) => s.id !== session.id));
-        setSessionId(session.id);
 
         if (todaySession?.messages.length) {
           setCurrentMessages(
@@ -52,8 +58,13 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
           );
         }
       } catch (err) {
-        console.error("MirrorChat init error:", err?.message ?? err);
-        setInitError(err?.message ?? String(err));
+        // Session creation failed — show all history as past sessions, chat works without persistence
+        setPastSessions(history.sessions);
+        const msg = err?.message ?? String(err);
+        if (!msg.includes("23503")) {
+          console.error("MirrorChat session error:", msg);
+          setInitError(msg);
+        }
       }
     })();
   }, []);
