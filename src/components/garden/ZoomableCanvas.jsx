@@ -107,13 +107,11 @@ export default function ZoomableCanvas({
     onZoomChange?.(newZoom);
   }, [onZoomChange]);
 
-  // Wheel zoom — native non-passive listener so preventDefault works.
-  // Also blocks document-level ctrl+wheel (trackpad pinch → browser page zoom)
-  // while the pointer is inside the canvas.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
+    // ── Wheel (desktop zoom + trackpad pinch) ──
     let pointerInside = false;
     const onEnter = () => { pointerInside = true; };
     const onLeave = () => { pointerInside = false; };
@@ -127,8 +125,6 @@ export default function ZoomableCanvas({
       onZoomChange?.(next);
     };
 
-    // Intercept ctrl+wheel at document level to block browser zoom
-    // when pointer is over the canvas (trackpad pinch fires as ctrl+wheel)
     const blockPageZoom = (e) => {
       if (pointerInside && (e.ctrlKey || e.metaKey)) e.preventDefault();
     };
@@ -138,37 +134,76 @@ export default function ZoomableCanvas({
     el.addEventListener("wheel", onWheel, { passive: false });
     document.addEventListener("wheel", blockPageZoom, { passive: false });
 
+    // ── Touch drag + pinch (mobile) ──
+    let lastTouches = null;
+
+    const onTouchStart = (e) => {
+      lastTouches = e.touches;
+    };
+
+    const onTouchMove = (e) => {
+      e.preventDefault();
+      const touches = e.touches;
+
+      if (touches.length === 1 && lastTouches?.length === 1) {
+        // Single finger drag → pan
+        const dx = touches[0].clientX - lastTouches[0].clientX;
+        const dy = touches[0].clientY - lastTouches[0].clientY;
+        setPan((prev) => ({
+          x: prev.x + dx / zoomRef.current,
+          y: prev.y + dy / zoomRef.current,
+        }));
+      } else if (touches.length === 2 && lastTouches?.length === 2) {
+        // Two fingers → pinch zoom
+        const prevDist = Math.hypot(
+          lastTouches[0].clientX - lastTouches[1].clientX,
+          lastTouches[0].clientY - lastTouches[1].clientY
+        );
+        const newDist = Math.hypot(
+          touches[0].clientX - touches[1].clientX,
+          touches[0].clientY - touches[1].clientY
+        );
+        if (prevDist > 0) {
+          const next = clampZoom(zoomRef.current * (newDist / prevDist));
+          zoomRef.current = next;
+          setZoom(next);
+          onZoomChange?.(next);
+        }
+      }
+
+      lastTouches = touches;
+    };
+
+    const onTouchEnd = () => { lastTouches = null; };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+
     return () => {
       el.removeEventListener("mouseenter", onEnter);
       el.removeEventListener("mouseleave", onLeave);
       el.removeEventListener("wheel", onWheel);
       document.removeEventListener("wheel", blockPageZoom);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
     };
   }, [minZoom, maxZoom, onZoomChange]);
 
+  // useGesture only used for mouse drag on desktop now
   const bind = useGesture(
     {
-      onPinch: ({ offset: [scale] }) => {
-        applyZoom(clampZoom(scale));
-      },
-      onDrag: ({ delta: [dx, dy], pinching }) => {
-        if (pinching) return;
+      onDrag: ({ delta: [dx, dy], event }) => {
+        if (event.pointerType === "touch") return; // handled natively above
         setPan((prev) => ({
-          x: prev.x + dx / zoom,
-          y: prev.y + dy / zoom,
+          x: prev.x + dx / zoomRef.current,
+          y: prev.y + dy / zoomRef.current,
         }));
       },
     },
     {
-      drag: {
-        filterTaps: true,
-        preventScroll: true,
-        pointer: { touch: true },
-      },
-      pinch: {
-        scaleBounds: { min: minZoom, max: maxZoom },
-        from: () => [zoom, 0],
-      },
+      drag: { filterTaps: true },
     }
   );
 
