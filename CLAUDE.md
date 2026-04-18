@@ -47,6 +47,20 @@ Requires `.env` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (see `.env
 
 Vercel (SPA rewrite configured in `vercel.json`).
 
+## Skills (`.claude/skills/`)
+
+Always use the installed skills when the task matches. These are available in `.claude/skills/`:
+
+| Skill | When to use |
+|-------|-------------|
+| **frontend-design** | Building or styling web components, pages, landing pages, dashboards. Generates distinctive, production-grade UI that avoids generic AI aesthetics. |
+| **heroui-react** | Building UI with HeroUI v3 components (Button, Modal, Card, Form, etc.). Always fetch v3 docs before implementing — v2 patterns don't apply. |
+| **heroui-migration** | Migrating HeroUI v2 → v3. Covers compound components, no Provider, Tailwind v4, onPress events. |
+| **webapp-testing** | Testing the app with Playwright. Use `scripts/with_server.py` to manage dev server lifecycle. Always wait for `networkidle` before inspecting DOM. |
+| **theme-factory** | Applying visual themes (colors/fonts) to artifacts like slides, docs, HTML pages. Has 10 preset themes + custom theme generation. |
+| **brand-guidelines** | Applying Anthropic brand colors (Dark #141413, Orange #d97757, etc.) and typography (Poppins headings, Lora body). |
+| **skill-creator** | Creating new skills or improving existing ones. Includes eval framework, benchmarking, and description optimization. |
+
 ## Code patterns
 
 - Mixed .tsx/.jsx — not all files are converted to TypeScript yet
