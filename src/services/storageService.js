@@ -159,21 +159,17 @@ export function createEmptyReflection() {
  * Uses getSession() (localStorage read, no network) instead of getUser()
  * to avoid timing/network issues during mount.
  */
-function getTokenFromStorage() {
+async function getFreshToken() {
   try {
-    const key = Object.keys(localStorage).find(
-      (k) => k.startsWith("sb-") && k.endsWith("-auth-token")
-    );
-    if (!key) return null;
-    const data = JSON.parse(localStorage.getItem(key));
-    return data?.access_token ?? null;
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token ?? null;
   } catch {
     return null;
   }
 }
 
 export async function syncReflection(reflection, userId) {
-  const token = getTokenFromStorage();
+  const token = await getFreshToken();
   if (!token) return null;
 
   // Upsert in background — don't block chat loading on this
