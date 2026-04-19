@@ -14,7 +14,7 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="bottom-nav">
+    <nav className="nav-items">
       {NAV_ITEMS.map((item) => {
         const active = location.pathname === item.path;
         return (

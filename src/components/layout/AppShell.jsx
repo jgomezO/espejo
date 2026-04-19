@@ -6,10 +6,15 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
+      <aside className="sidebar-nav">
+        <BottomNav />
+      </aside>
       <main className={`app-main${isChat ? " app-main--chat" : ""}`}>
         <Outlet />
       </main>
-      <BottomNav />
+      <div className="mobile-nav">
+        <BottomNav />
+      </div>
     </div>
   );
 }

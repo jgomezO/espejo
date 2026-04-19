@@ -56,6 +56,10 @@ body {
   position: relative;
 }
 
+.sidebar-nav {
+  display: none;
+}
+
 .app-main {
   flex: 1;
   overflow-y: auto;
@@ -68,7 +72,7 @@ body {
 }
 
 /* ── Bottom Nav ── */
-.bottom-nav {
+.mobile-nav .nav-items {
   position: fixed;
   bottom: 0;
   left: 50%;
@@ -2997,4 +3001,331 @@ body {
   font-family: inherit;
   text-align: center;
   padding: 0 24px;
+}
+
+/* ═══════════════════════════════════════════════
+   Desktop Responsive (768px+)
+   ═══════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  /* ── Shell: sidebar + content layout ── */
+  .app-shell {
+    max-width: none;
+    flex-direction: row;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 220px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid var(--color-border);
+    z-index: 100;
+    padding: 32px 0;
+  }
+
+  .sidebar-nav .nav-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 12px;
+    width: 100%;
+  }
+
+  .sidebar-nav .bottom-nav-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .sidebar-nav .bottom-nav-item:hover {
+    background: var(--color-accent-light);
+  }
+
+  .sidebar-nav .bottom-nav-item.active {
+    background: var(--color-accent-light);
+  }
+
+  .mobile-nav {
+    display: none;
+  }
+
+  .app-main {
+    margin-left: 220px;
+    padding-bottom: 0;
+    max-width: 720px;
+    width: calc(100% - 220px);
+  }
+
+  .app-main--chat {
+    padding-bottom: 0;
+  }
+
+  /* ── Home ── */
+  .home-header {
+    border-radius: 0 0 40px 40px;
+    padding: 56px 40px 40px;
+  }
+
+  .home-greeting {
+    font-size: 44px;
+  }
+
+  .daily-prompt {
+    margin: 0 32px;
+    padding: 28px;
+  }
+
+  .daily-prompt-text {
+    font-size: 24px;
+  }
+
+  .btn-start {
+    width: calc(100% - 64px);
+    margin: 0 32px;
+  }
+
+  .home-stats {
+    padding: 0 32px;
+  }
+
+  /* ── Reflection layers ── */
+  .layer-card-content {
+    padding: 12px 40px 32px;
+  }
+
+  .layer-title {
+    font-size: 36px;
+  }
+
+  .layer-actions {
+    padding: 20px 40px max(20px, env(safe-area-inset-bottom));
+  }
+
+  .progress-indicator {
+    padding: 0 40px 16px;
+  }
+
+  /* ── Emotions: 3 columns ── */
+  .emotions-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* ── Stance cards: 2 columns ── */
+  .stance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* ── Mirror Summary ── */
+  .mirror-header {
+    border-radius: 0 0 40px 40px;
+    padding: 52px 40px 40px;
+  }
+
+  .mirror-summary {
+    padding: 0 8px 40px;
+  }
+
+  .mirror-content {
+    padding: 32px;
+  }
+
+  .mirror-text {
+    font-size: 20px;
+  }
+
+  .therapy-questions {
+    padding: 28px;
+  }
+
+  /* ── History ── */
+  .history-screen,
+  .profile-screen {
+    padding: 40px 32px 32px;
+  }
+
+  .screen-title {
+    font-size: 40px;
+  }
+
+  /* ── Reflection Detail ── */
+  .reflection-detail {
+    padding: 32px 40px;
+  }
+
+  .detail-ai-summary {
+    font-size: 19px !important;
+  }
+
+  /* ── Chat ── */
+  .mirror-chat {
+    height: calc(100svh - 0px);
+  }
+
+  .mirror-chat-messages {
+    padding: 24px 40px;
+  }
+
+  .chat-bubble {
+    max-width: 70%;
+  }
+
+  .mirror-chat-input-row {
+    padding: 16px 40px max(16px, env(safe-area-inset-bottom));
+  }
+
+  /* ── Profile ── */
+  .profile-hero {
+    border-radius: 0 0 40px 40px;
+    padding: 52px 32px 36px;
+  }
+
+  .profile-body {
+    padding: 32px 32px 48px;
+  }
+
+  /* ── Nudge ── */
+  .nudge-screen {
+    padding: 48px 40px;
+  }
+
+  .nudge-question {
+    font-size: 32px;
+  }
+
+  /* ── Onboarding ── */
+  .onboarding-screen {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 56px 40px max(40px, env(safe-area-inset-bottom));
+  }
+
+  /* ── Login ── */
+  .login-card {
+    max-width: 440px;
+  }
+
+  /* ── Garden ── */
+  .garden-zoom-controls {
+    bottom: 16px;
+    right: 16px;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   Large Desktop (1024px+)
+   ═══════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+  .sidebar-nav {
+    width: 260px;
+  }
+
+  .sidebar-nav .nav-items {
+    padding: 0 16px;
+  }
+
+  .sidebar-nav .bottom-nav-item {
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+
+  .app-main {
+    margin-left: 260px;
+    max-width: 800px;
+    width: calc(100% - 260px);
+  }
+
+  /* ── Home ── */
+  .home-header {
+    padding: 64px 48px 44px;
+  }
+
+  .home-greeting {
+    font-size: 48px;
+  }
+
+  .daily-prompt {
+    margin: 0 40px;
+    padding: 32px;
+  }
+
+  .btn-start {
+    width: calc(100% - 80px);
+    margin: 0 40px;
+  }
+
+  .home-stats {
+    padding: 0 40px;
+  }
+
+  /* ── Reflection ── */
+  .layer-card-content {
+    padding: 16px 48px 40px;
+  }
+
+  .layer-actions {
+    padding: 24px 48px max(24px, env(safe-area-inset-bottom));
+  }
+
+  .progress-indicator {
+    padding: 0 48px 20px;
+  }
+
+  /* ── Emotions: 4 columns ── */
+  .emotions-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* ── History & Profile ── */
+  .history-screen,
+  .profile-screen {
+    padding: 48px 40px 40px;
+  }
+
+  .reflection-detail {
+    padding: 40px 48px;
+  }
+
+  /* ── Chat ── */
+  .mirror-chat-messages {
+    padding: 28px 48px;
+  }
+
+  .chat-bubble {
+    max-width: 60%;
+  }
+
+  .mirror-chat-input-row {
+    padding: 16px 48px max(16px, env(safe-area-inset-bottom));
+  }
+
+  /* ── Mirror ── */
+  .mirror-header {
+    padding: 60px 48px 48px;
+  }
+
+  .mirror-content {
+    padding: 36px;
+  }
+
+  /* ── Nudge ── */
+  .nudge-question {
+    font-size: 36px;
+  }
+
+  /* ── Onboarding ── */
+  .onboarding-screen {
+    max-width: 680px;
+  }
 }
