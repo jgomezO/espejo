@@ -211,9 +211,13 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
             {session.messages.map((msg, i) => (
               <div
                 key={msg.id || i}
-                className={`chat-bubble ${msg.role} past`}
-                dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
-              />
+                className={msg.role === "user" ? "chat-wrap-user" : "chat-wrap-assistant"}
+              >
+                <div
+                  className={`chat-bubble ${msg.role} past`}
+                  dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
+                />
+              </div>
             ))}
           </div>
         ))}
