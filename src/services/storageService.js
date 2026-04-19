@@ -153,32 +153,39 @@ export function createEmptyReflection() {
   };
 }
 
+import { getAuthToken } from "./chatService.js";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 /**
  * Ensure a specific reflection exists in Supabase before operations that
  * depend on it (e.g. creating a chat session with FK on reflection_id).
- * Uses getSession() (localStorage read, no network) instead of getUser()
- * to avoid timing/network issues during mount.
+ * Uses REST directly instead of Supabase JS client to avoid hanging.
  */
-async function getFreshToken() {
-  try {
-    const { data } = await supabase.auth.getSession();
-    return data?.session?.access_token ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function syncReflection(reflection, userId) {
-  const token = await getFreshToken();
-  if (!token) return null;
+  const token = getAuthToken();
+  if (!token || !userId) return;
 
-  if (userId) {
-    await supabase
-      .from("reflections")
-      .upsert(toRow(reflection, userId), { onConflict: "id" });
+  const row = toRow(reflection, userId);
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/reflections?on_conflict=id`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates",
+      },
+      body: JSON.stringify(row),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`syncReflection failed: ${res.status} ${text}`);
   }
-
-  return token;
 }
 
 // Migrate local reflections to Supabase after login
