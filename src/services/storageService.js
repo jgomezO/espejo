@@ -188,6 +188,59 @@ export async function syncReflection(reflection, userId) {
   }
 }
 
+/**
+ * Returns a Set of reflection IDs that exist in Supabase for the current user.
+ */
+export async function getRemoteReflectionIds() {
+  const token = getAuthToken();
+  if (!token) return new Set();
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/reflections?select=id`,
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    if (!res.ok) return new Set();
+    const rows = await res.json();
+    return new Set(rows.map((r) => r.id));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Save a single reflection to Supabase via REST (for manual sync).
+ */
+export async function saveReflectionToSupabase(reflection, userId) {
+  const token = getAuthToken();
+  if (!token || !userId) throw new Error("No auth token");
+
+  const row = toRow(reflection, userId);
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/reflections?on_conflict=id`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates",
+      },
+      body: JSON.stringify(row),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`saveReflectionToSupabase failed: ${res.status} ${text}`);
+  }
+}
+
 // Migrate local reflections to Supabase after login
 export async function migrateLocalToSupabase(userId) {
   const local = getLocal();
