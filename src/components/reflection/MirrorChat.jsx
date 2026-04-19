@@ -3,12 +3,21 @@ import { motion } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import { callClaudeStream, processAIResponse } from "../../services/anthropicService.js";
 import { MIRROR_CHAT_SYSTEM_PROMPT, buildMirrorChatMessages } from "../../utils/prompts.js";
-import { loadChatHistory, getOrCreateTodaySession, saveMessage } from "../../services/chatService.js";
+import { loadChatHistory, ensureSession, saveMessage } from "../../services/chatService.js";
 import { syncReflection } from "../../services/storageService.js";
-import { supabase } from "../../services/supabaseClient.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import SafetyDisclaimer from "../safety/SafetyDisclaimer.jsx";
 import CrisisModal from "../crisis/CrisisModal.jsx";
+
+function formatMessage(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/^[-•]\s+(.+)$/gm, "<li>$1</li>")
+    .replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>")
+    .replace(/(<\/ul>\s*<ul>)/g, "")
+    .replace(/\n/g, "<br />");
+}
 
 function formatSessionDate(iso) {
   return new Date(iso).toLocaleDateString("es-ES", {
@@ -19,106 +28,108 @@ function formatSessionDate(iso) {
 export default function MirrorChat({ reflection, onClose, mode = "new" }) {
   const { user } = useAuth();
 
-  const [sessionId, setSessionId] = useState(null);
-  const [initialized, setInitialized] = useState(false);
   const [pastSessions, setPastSessions] = useState([]);
-  // Each message: { localId, role, content, saved: bool }
   const [currentMessages, setCurrentMessages] = useState([]);
-  const [initError, setInitError] = useState(null);
 
   const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState("");
   const [loading, setLoading] = useState(false);
   const [crisisOpen, setCrisisOpen] = useState(false);
   const [dismissedNudges, setDismissedNudges] = useState(new Set());
+  const [savedFlash, setSavedFlash] = useState(false);
   const bottomRef = useRef(null);
-  const initRan = useRef(false);
-  const tokenRef = useRef(null);
 
+  // Session ID is managed via ref only — no React state needed since
+  // it's only used inside async functions, never for rendering.
+  const sessionIdRef = useRef(null);
+  const sessionPromiseRef = useRef(null);
+
+  // ── Load past history on mount (non-blocking) ──────────────
   useEffect(() => {
-    if (initRan.current) return;
-    initRan.current = true;
+    let cancelled = false;
+    loadChatHistory(reflection.id).then((history) => {
+      if (cancelled) return;
+      if (history.sessions.length > 0) {
+        // If there's a session from today, load its messages as current
+        const today = new Date().toDateString();
+        const todaySession = history.sessions.find(
+          (s) => new Date(s.startedAt).toDateString() === today
+        );
+        const past = history.sessions.filter((s) => s !== todaySession);
+        setPastSessions(past);
 
-    // Safety net: always unblock the UI after 8s even if something hangs
-    const safetyTimer = setTimeout(() => setInitialized(true), 8000);
-
-    (async () => {
-      try {
-        // Get a fresh token directly from Supabase auth
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token ?? null;
-        tokenRef.current = token;
-
-        // Sync reflection to Supabase BEFORE creating chat session (FK dependency)
-        await syncReflection(reflection, user.id);
-
-        const history = await loadChatHistory(reflection.id, token);
-
-        try {
-          const session = await getOrCreateTodaySession(reflection.id, user.id, token);
-          setSessionId(session.id);
-
-          const todaySession = history.sessions.find((s) => s.id === session.id);
-          setPastSessions(history.sessions.filter((s) => s.id !== session.id));
-
-          if (todaySession?.messages.length) {
-            setCurrentMessages(
-              todaySession.messages.map((m) => ({
-                localId: m.id,
-                role: m.role,
-                content: m.content,
-                saved: true,
-              }))
-            );
-          }
-        } catch (err) {
-          setPastSessions(history.sessions);
-          const msg = err?.message ?? String(err);
-          if (!msg.includes("23503")) {
-            console.error("MirrorChat session error:", msg);
-            setInitError(msg);
-          }
+        if (todaySession?.messages.length) {
+          setCurrentMessages(
+            todaySession.messages.map((m) => ({
+              localId: m.id,
+              role: m.role,
+              content: m.content,
+              saved: true,
+            }))
+          );
         }
-      } finally {
-        clearTimeout(safetyTimer);
-        setInitialized(true);
       }
-    })();
-  }, []);
+    }).catch((err) => {
+      console.error("[MirrorChat] Failed to load history:", err);
+    });
+    return () => { cancelled = true; };
+  }, [reflection.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [currentMessages, streaming]);
+  }, [currentMessages, loading]);
+
+  // ── Lazy session creation ──────────────────────────────────
+  // Returns the sessionId, creating one if needed. Deduplicates
+  // concurrent calls so the session is only created once.
+  async function getSessionId() {
+    if (sessionIdRef.current) return sessionIdRef.current;
+
+    if (!sessionPromiseRef.current) {
+      sessionPromiseRef.current = (async () => {
+        // Sync reflection first (FK dependency)
+        await syncReflection(reflection, user.id);
+        const sid = await ensureSession(reflection.id, user.id);
+        sessionIdRef.current = sid;
+        return sid;
+      })();
+    }
+
+    return sessionPromiseRef.current;
+  }
 
   const updateMessage = (localId, patch) =>
     setCurrentMessages((prev) => prev.map((m) => m.localId === localId ? { ...m, ...patch } : m));
 
-  const retryMessage = async (localId) => {
-    const msg = currentMessages.find((m) => m.localId === localId);
-    if (!msg || !sessionId) return;
+  const persistMessage = async (localId, role, content) => {
     try {
-      await saveMessage(sessionId, user.id, msg.role, msg.content, tokenRef.current);
-      updateMessage(localId, { saved: true });
-    } catch { /* stays unsaved */ }
+      const sid = await getSessionId();
+      await saveMessage(sid, user.id, role, content);
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 2000);
+    } catch (err) {
+      console.error("[MirrorChat] Failed to save message:", err);
+      updateMessage(localId, { saved: false });
+    }
+  };
+
+  const retryMessage = (localId) => {
+    const msg = currentMessages.find((m) => m.localId === localId);
+    if (!msg) return;
+    persistMessage(localId, msg.role, msg.content);
   };
 
   const send = async () => {
     if (!input.trim() || loading) return;
 
     const userLocalId = crypto.randomUUID();
-    const userMsg = { localId: userLocalId, role: "user", content: input.trim(), saved: !sessionId };
+    const userMsg = { localId: userLocalId, role: "user", content: input.trim(), saved: true };
     const updatedMessages = [...currentMessages, userMsg];
     setCurrentMessages(updatedMessages);
     setInput("");
     setLoading(true);
-    setStreaming("");
 
-    // Persist user message (non-blocking, only if session exists)
-    if (sessionId) {
-      saveMessage(sessionId, user.id, "user", userMsg.content, tokenRef.current)
-        .then(() => updateMessage(userLocalId, { saved: true }))
-        .catch(() => { /* stays unsaved */ });
-    }
+    // Persist user message asynchronously
+    persistMessage(userLocalId, "user", userMsg.content);
 
     // Build Claude context
     const allPastMessages = pastSessions.flatMap((s) => s.messages);
@@ -128,26 +139,21 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
       system: MIRROR_CHAT_SYSTEM_PROMPT,
       messages: contextMessages,
       maxTokens: 300,
-      onChunk: (text) => setStreaming(text),
+      onChunk: () => {},
     });
 
     setLoading(false);
-    setStreaming("");
 
     if (result) {
       const processed = processAIResponse(result);
       if (processed.triggerCrisisModal) setCrisisOpen(true);
 
       const aiLocalId = crypto.randomUUID();
-      const aiMsg = { localId: aiLocalId, role: "assistant", content: processed.text, saved: !sessionId };
+      const aiMsg = { localId: aiLocalId, role: "assistant", content: processed.text, saved: true };
       setCurrentMessages((prev) => [...prev, aiMsg]);
 
-      // Persist assistant message (non-blocking, only if session exists)
-      if (sessionId) {
-        saveMessage(sessionId, user.id, "assistant", aiMsg.content, tokenRef.current)
-          .then(() => updateMessage(aiLocalId, { saved: true }))
-          .catch(() => { /* stays unsaved */ });
-      }
+      // Persist assistant message asynchronously
+      persistMessage(aiLocalId, "assistant", aiMsg.content);
     }
   };
 
@@ -172,7 +178,6 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
     setDismissedNudges((prev) => new Set([...prev, level]));
 
   const isResumed = pastSessions.length > 0 || currentMessages.length > 0;
-  const inputDisabled = loading;
 
   return (
     <motion.div
@@ -183,31 +188,20 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
     >
       <div className="mirror-chat-header">
         <button className="btn-back" onClick={onClose} style={{ width: "auto" }}>← Volver</button>
-        <span className="mirror-chat-counter">
-          {isResumed ? "Conversación guardada" : "Nueva conversación"}
-        </span>
+        {savedFlash && (
+          <motion.span
+            className="mirror-chat-counter"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            Conversación guardada
+          </motion.span>
+        )}
       </div>
 
       <div className="mirror-chat-messages">
-        {/* Session init error — shows Supabase error for debugging */}
-        {initError && (
-          <div className="mirror-chat-init-error">
-            <strong>Error al iniciar sesión:</strong> {initError}
-            <br /><small>Los mensajes no se guardarán hasta resolver esto.</small>
-          </div>
-        )}
-
-        {/* Session initializing */}
-        {!initialized && (
-          <motion.p
-            className="mirror-chat-init-hint"
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-          >
-            Preparando tu espejo...
-          </motion.p>
-        )}
-
         {/* Past sessions (read-only) — skip empty sessions */}
         {pastSessions.filter((s) => s.messages.length > 0).map((session) => (
           <div key={session.id} className="mirror-chat-past-session">
@@ -215,9 +209,11 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
               <span>{formatSessionDate(session.startedAt)}</span>
             </div>
             {session.messages.map((msg, i) => (
-              <div key={msg.id || i} className={`chat-bubble ${msg.role} past`}>
-                {msg.content}
-              </div>
+              <div
+                key={msg.id || i}
+                className={`chat-bubble ${msg.role} past`}
+                dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
+              />
             ))}
           </div>
         ))}
@@ -242,11 +238,15 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
           return (
             <Fragment key={msg.localId}>
               <motion.div
+                className={msg.role === "user" ? "chat-wrap-user" : "chat-wrap-assistant"}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className={`chat-bubble ${msg.role}`}>{msg.content}</div>
+                <div
+                  className={`chat-bubble ${msg.role}`}
+                  dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
+                />
                 {!msg.saved && (
                   <div className={`mirror-chat-unsaved mirror-chat-unsaved-${msg.role}`}>
                     <AlertCircle size={11} />
@@ -273,25 +273,16 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
           );
         })}
 
-        {/* Streaming response */}
-        {loading && streaming && (
+        {/* Typing indicator */}
+        {loading && (
           <motion.div
-            className="chat-bubble assistant"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            aria-live="polite"
-          >
-            {streaming}<span className="mirror-cursor">▌</span>
-          </motion.div>
-        )}
-
-        {loading && !streaming && (
-          <motion.div
-            className="chat-bubble assistant chat-typing"
+            className="chat-wrap-assistant"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <span /><span /><span />
+            <div className="chat-bubble assistant chat-typing">
+              <span /><span /><span />
+            </div>
           </motion.div>
         )}
 
@@ -306,13 +297,13 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={2}
-          disabled={inputDisabled}
+          disabled={loading}
           aria-label="Mensaje al espejo"
         />
         <button
           className="mirror-chat-send"
           onClick={send}
-          disabled={!input.trim() || inputDisabled}
+          disabled={!input.trim() || loading}
           aria-label="Enviar"
         >
           ↑

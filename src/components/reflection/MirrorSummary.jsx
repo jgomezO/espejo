@@ -17,7 +17,6 @@ export default function MirrorSummary({ reflection }) {
 
   const [mirror, setMirror] = useState(reflection.aiSummary || null);
   const [therapyQuestions, setTherapyQuestions] = useState(reflection.therapyQuestions || []);
-  const [streamingText, setStreamingText] = useState(reflection.aiSummary || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [savedReflection, setSavedReflection] = useState(reflection);
@@ -26,21 +25,15 @@ export default function MirrorSummary({ reflection }) {
   const generate = async () => {
     setLoading(true);
     setError(null);
-    setStreamingText("");
     setMirror(null);
 
-    const result = await generateMirrorSummary(reflection, (chunk) => {
-      // Try to extract mirror text from partial JSON for streaming display
-      const match = chunk.match(/"mirror"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      if (match) setStreamingText(match[1].replace(/\\n/g, "\n").replace(/\\"/g, '"'));
-    });
+    const result = await generateMirrorSummary(reflection, () => {});
 
     setLoading(false);
 
     if (result) {
       const processed = processAIResponse(result.mirror);
       setMirror(processed.text);
-      setStreamingText(processed.text);
       if (processed.triggerCrisisModal) setCrisisOpen(true);
       setTherapyQuestions(result.therapyQuestions);
       setAiSummary(processed.text);
@@ -95,7 +88,7 @@ export default function MirrorSummary({ reflection }) {
       )}
 
       <div className="mirror-content">
-        {loading && !streamingText && (
+        {loading && (
           <div className="mirror-loading">
             <div className="mirror-breathing-circles">
               {[1, 2, 3].map((i) => (
@@ -119,15 +112,14 @@ export default function MirrorSummary({ reflection }) {
           </div>
         )}
 
-        {streamingText && (
+        {!loading && mirror && (
           <motion.div
             className="mirror-text ai-text"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             aria-live="polite"
           >
-            {streamingText}
-            {loading && <span className="mirror-cursor">▌</span>}
+            {mirror}
           </motion.div>
         )}
       </div>
