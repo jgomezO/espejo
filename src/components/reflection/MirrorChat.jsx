@@ -49,8 +49,8 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
         const token = sessionData?.session?.access_token ?? null;
         tokenRef.current = token;
 
-        // Sync reflection to Supabase in background (don't depend on its token)
-        syncReflection(reflection, user.id).catch(() => {});
+        // Sync reflection to Supabase BEFORE creating chat session (FK dependency)
+        await syncReflection(reflection, user.id);
 
         const history = await loadChatHistory(reflection.id, token);
 

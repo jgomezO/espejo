@@ -172,13 +172,10 @@ export async function syncReflection(reflection, userId) {
   const token = await getFreshToken();
   if (!token) return null;
 
-  // Upsert in background — don't block chat loading on this
   if (userId) {
-    (async () => {
-      await supabase
-        .from("reflections")
-        .upsert(toRow(reflection, userId), { onConflict: "id" });
-    })().catch(() => {});
+    await supabase
+      .from("reflections")
+      .upsert(toRow(reflection, userId), { onConflict: "id" });
   }
 
   return token;
