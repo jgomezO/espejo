@@ -5,6 +5,7 @@ import { callClaudeStream, processAIResponse } from "../../services/anthropicSer
 import { MIRROR_CHAT_SYSTEM_PROMPT, buildMirrorChatMessages } from "../../utils/prompts.js";
 import { loadChatHistory, getOrCreateTodaySession, saveMessage } from "../../services/chatService.js";
 import { syncReflection } from "../../services/storageService.js";
+import { supabase } from "../../services/supabaseClient.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import SafetyDisclaimer from "../safety/SafetyDisclaimer.jsx";
 import CrisisModal from "../crisis/CrisisModal.jsx";
@@ -43,12 +44,15 @@ export default function MirrorChat({ reflection, onClose, mode = "new" }) {
 
     (async () => {
       try {
-        console.log("[MirrorChat] step 1: syncReflection");
-        const token = await syncReflection(reflection, user.id);
+        // Get a fresh token directly from Supabase auth
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token ?? null;
         tokenRef.current = token;
-        console.log("[MirrorChat] step 2: loadChatHistory, token:", !!token);
+
+        // Sync reflection to Supabase in background (don't depend on its token)
+        syncReflection(reflection, user.id).catch(() => {});
+
         const history = await loadChatHistory(reflection.id, token);
-        console.log("[MirrorChat] step 3: getOrCreateTodaySession, sessions:", history.sessions.length);
 
         try {
           const session = await getOrCreateTodaySession(reflection.id, user.id, token);
