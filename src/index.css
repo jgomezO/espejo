@@ -3059,10 +3059,17 @@ body {
   }
 
   .app-main {
-    margin-left: 220px;
     padding-bottom: 0;
-    max-width: 720px;
+    margin-left: 220px;
     width: calc(100% - 220px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app-main > * {
+    width: 100%;
+    max-width: 720px;
   }
 
   .app-main--chat {
@@ -3170,7 +3177,7 @@ body {
 
   /* ── Chat ── */
   .mirror-chat {
-    height: calc(100svh - 0px);
+    height: 100svh;
   }
 
   .mirror-chat-messages {
@@ -3242,8 +3249,11 @@ body {
 
   .app-main {
     margin-left: 260px;
-    max-width: 800px;
     width: calc(100% - 260px);
+  }
+
+  .app-main > * {
+    max-width: 800px;
   }
 
   /* ── Home ── */
