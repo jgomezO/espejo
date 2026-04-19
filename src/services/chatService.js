@@ -1,3 +1,5 @@
+import { supabase } from "./supabaseClient.js";
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -124,17 +126,12 @@ export async function saveMessage(sessionId, userId, role, content, token) {
 }
 
 export async function getChatSummary(reflectionId) {
-  // getChatSummary runs from the history list where we don't have a token handy,
-  // so we read it directly from localStorage (sync, no hanging).
-  const token = (() => {
-    try {
-      const key = Object.keys(localStorage).find(
-        (k) => k.startsWith("sb-") && k.endsWith("-auth-token")
-      );
-      if (key) return JSON.parse(localStorage.getItem(key))?.access_token ?? null;
-    } catch {}
-    return null;
-  })();
+  let token = null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    token = data?.session?.access_token ?? null;
+  } catch {}
+
 
   try {
     const sessions = await restGet(
