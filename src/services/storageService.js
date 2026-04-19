@@ -1,6 +1,9 @@
 import { supabase } from "./supabaseClient.js";
+import { getAuthToken } from "./chatService.js";
 
 const LOCAL_KEY = "espejo_reflections";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // ── Local helpers ──────────────────────────────────────────
 function getLocal() {
@@ -42,31 +45,58 @@ function fromRow(row) {
 
 // ── Public API ─────────────────────────────────────────────
 export async function getReflections() {
-  // Devuelve local inmediatamente, sincroniza con Supabase en background
   const local = getLocal();
 
-  syncFromSupabase().catch(() => {});
+  // Fetch remote reflections via REST and merge with local
+  try {
+    const remote = await fetchRemoteReflections();
+    if (remote.length > 0) {
+      const merged = mergeReflections(local, remote);
+      setLocal(merged);
+      return merged;
+    }
+  } catch (err) {
+    console.error("[storageService] Failed to fetch remote reflections:", err);
+  }
 
   return local;
 }
 
-async function syncFromSupabase() {
-  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000));
+async function fetchRemoteReflections() {
+  const token = getAuthToken();
+  if (!token) return [];
 
-  const fetch = (async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/reflections?select=*&order=created_at.desc`,
+    {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 
-    const { data, error } = await supabase
-      .from("reflections")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+  if (!res.ok) return [];
+  const rows = await res.json();
+  return rows.map(fromRow);
+}
 
-    if (!error && data) setLocal(data.map(fromRow));
-  })();
+/**
+ * Merge local and remote reflections. Remote wins for duplicates
+ * (since it's the source of truth), local-only items are preserved.
+ */
+function mergeReflections(local, remote) {
+  const remoteMap = new Map(remote.map((r) => [r.id, r]));
+  const merged = [...remote];
 
-  await Promise.race([fetch, timeout]);
+  for (const l of local) {
+    if (!remoteMap.has(l.id)) {
+      merged.push(l);
+    }
+  }
+
+  merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return merged;
 }
 
 export function saveReflection(reflection) {
@@ -152,11 +182,6 @@ export function createEmptyReflection() {
     completed: false,
   };
 }
-
-import { getAuthToken } from "./chatService.js";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 /**
  * Ensure a specific reflection exists in Supabase before operations that
