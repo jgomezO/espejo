@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { path: "/profile", label: "Perfil",    Icon: User },
 ];
 
-export default function BottomNav() {
+export default function BottomNav({ collapsed = false }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -23,9 +23,10 @@ export default function BottomNav() {
             className={`bottom-nav-item ${active ? "active" : ""}`}
             onClick={() => navigate(item.path)}
             aria-label={item.label}
+            title={collapsed ? item.label : undefined}
           >
             <item.Icon size={22} strokeWidth={active ? 2.5 : 1.8} />
-            <span>{item.label}</span>
+            {!collapsed && <span>{item.label}</span>}
           </button>
         );
       })}

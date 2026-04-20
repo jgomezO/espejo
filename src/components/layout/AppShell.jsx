@@ -1,13 +1,23 @@
+import { useState } from "react";
 import { Outlet, useMatch } from "react-router-dom";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import BottomNav from "./BottomNav.jsx";
 
 export default function AppShell() {
   const isChat = useMatch("/reflection/:id/chat");
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${collapsed ? " sidebar-collapsed" : ""}`}>
       <aside className="sidebar-nav">
-        <BottomNav />
+        <BottomNav collapsed={collapsed} />
+        <button
+          className="sidebar-toggle"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+        >
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
       </aside>
       <main className={`app-main${isChat ? " app-main--chat" : ""}`}>
         <Outlet />
