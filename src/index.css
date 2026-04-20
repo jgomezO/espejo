@@ -3176,6 +3176,21 @@ body {
     background: var(--color-accent-light);
   }
 
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px 20px;
+    margin-bottom: 8px;
+  }
+
+  .sidebar-brand {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.5px;
+  }
+
   .sidebar-toggle {
     display: flex;
     align-items: center;
@@ -3184,15 +3199,19 @@ body {
     border: none;
     color: var(--color-text-soft);
     cursor: pointer;
-    padding: 12px;
-    margin: 0 12px;
-    border-radius: 10px;
+    padding: 8px;
+    border-radius: 8px;
     transition: background 0.2s, color 0.2s;
   }
 
   .sidebar-toggle:hover {
     background: var(--color-accent-light);
     color: var(--color-text);
+  }
+
+  .sidebar-collapsed .sidebar-header {
+    justify-content: center;
+    padding: 0 8px 20px;
   }
 
   /* ── Collapsed state ── */

@@ -10,14 +10,17 @@ export default function AppShell() {
   return (
     <div className={`app-shell${collapsed ? " sidebar-collapsed" : ""}`}>
       <aside className="sidebar-nav">
+        <div className="sidebar-header">
+          {!collapsed && <span className="sidebar-brand">Espejo</span>}
+          <button
+            className="sidebar-toggle"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+          >
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+        </div>
         <BottomNav collapsed={collapsed} />
-        <button
-          className="sidebar-toggle"
-          onClick={() => setCollapsed((c) => !c)}
-          aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-        >
-          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        </button>
       </aside>
       <main className={`app-main${isChat ? " app-main--chat" : ""}`}>
         <Outlet />
